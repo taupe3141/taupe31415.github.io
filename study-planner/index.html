@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySync AI - 受験生向け自動学習＆忘却曲線プランナー</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f4f7fb;
+            color: #1e293b;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @keyframes pulseShift {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45); }
+            50% { transform: scale(1.01); box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); background-color: #eff6ff; }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .rescheduled-flash { animation: pulseShift 0.8s ease-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .view-fade { animation: fadeIn 0.2s ease-out forwards; }
+        .chat-bubble { animation: fadeIn 0.25s ease-out forwards; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pb-20 md:pb-6">
+
+    <!-- トップヘッダー＆メインナビゲーション -->
+    <header class="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+            <!-- ロゴ -->
+            <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchView('today')">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center text-white font-bold shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-extrabold bg-gradient-to-r from-blue-700 to-emerald-600 bg-clip-text text-transparent leading-tight">StudySync AI</h1>
+                    <p class="text-[10px] sm:text-[11px] text-slate-400 font-medium hidden sm:block">受験生向け自動学習＆忘却曲線プランナー</p>
+                </div>
+            </div>
+
+            <!-- デスクトップ用タブナビゲーション -->
+            <nav class="hidden md:flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+                <button data-nav="today" onclick="switchView('today')" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 bg-white text-blue-600 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    今日のタスク
+                    <span id="navTodayBadge" class="ml-0.5 text-[11px] bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-full">0</span>
+                </button>
+                <button data-nav="chat" onclick="switchView('chat')" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    チャットでAI登録
+                </button>
+                <button data-nav="form" onclick="switchView('form')" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    詳細フォーム登録
+                </button>
+                <button data-nav="schedule" onclick="switchView('schedule')" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    週間予定＆設定
+                </button>
+            </nav>
+
+            <!-- クイックアクション（スマホ時は右上に配置） -->
+            <div class="flex items-center gap-2">
+                <button onclick="switchView('chat')" class="md:hidden text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                    ＋ AI追加
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- トースト通知エリア（画面上部中央） -->
+    <div id="toastContainer" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4"></div>
+
+    <!-- メインコンテンツエリア -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6">
+
+        <!-- ========================================================= -->
+        <!-- 1. 「今日のタスク（Today）」画面（初期表示）                 -->
+        <!-- ========================================================= -->
+        <section id="view-today" class="view-section view-fade space-y-6">
+            <!-- 今日のサマリーカード -->
+            <div class="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold mb-2">
+                            <span>📅 TODAY'S MISSION</span>
+                            <span id="todayDateDisplay"></span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">今日の学習ミッション</h2>
+                        <p id="todayEncourageText" class="text-blue-100 text-xs sm:text-sm mt-1">忘却曲線に沿った復習と課題が自動セットされています。</p>
+                    </div>
+
+                    <!-- 進捗リング/数値ボックス -->
+                    <div class="bg-white/15 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex items-center gap-4 self-start sm:self-auto">
+                        <div>
+                            <p class="text-[11px] text-blue-100 font-semibold">今日の達成率</p>
+                            <p id="todayProgressPercent" class="text-3xl font-extrabold leading-none mt-1">0%</p>
+                        </div>
+                        <div class="h-10 w-px bg-white/20"></div>
+                        <div class="text-xs space-y-1">
+                            <p class="text-blue-100">完了: <strong id="todayCompletedRatio" class="text-white text-sm">0 / 0</strong> 件</p>
+                            <p class="text-blue-100">残り時間: <strong id="todayRemainingMinutes" class="text-emerald-300 text-sm">0分</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- プログレスバー -->
+                <div class="mt-5">
+                    <div class="flex justify-between text-xs text-blue-100 font-medium mb-1.5">
+                        <span>本日の予定合計: <strong id="todayTotalMinutes" class="text-white">0分</strong></span>
+                        <span>1日の上限枠: <strong id="todayCapMinutes" class="text-white">120分</strong></span>
+                    </div>
+                    <div class="w-full h-2.5 bg-blue-950/50 rounded-full overflow-hidden">
+                        <div id="todayProgressBar" class="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アクションバー（タスク追加＆リスケ） -->
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <button onclick="switchView('chat')" class="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95">
+                        <span>💬 チャットで予定・宿題を追加</span>
+                    </button>
+                    <button onclick="switchView('form')" class="text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl transition hidden sm:inline-flex items-center gap-1">
+                        <span>＋ 詳細登録</span>
+                    </button>
+                </div>
+
+                <button onclick="rescheduleTodayUnfinished()" class="text-xs sm:text-sm bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm active:scale-95">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>今日の残りを明日以降へ一括リスケ</span>
+                </button>
+            </div>
+
+            <!-- 今日のタスクリスト -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between px-1">
+                    <h3 class="text-sm font-extrabold text-slate-700 flex items-center gap-2">
+                        <span>📋 今日やるべきタスク一覧</span>
+                    </h3>
+                    <button onclick="switchView('schedule')" class="text-xs font-bold text-blue-600 hover:underline">
+                        明日以降の予定を見る →
+                    </button>
+                </div>
+
+                <div id="todayTaskList" class="space-y-3">
+                    <!-- JSで動的描画 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- 2. 「チャットでAI登録」画面                                -->
+        <!-- ========================================================= -->
+        <section id="view-chat" class="view-section hidden view-fade">
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col h-[calc(100vh-175px)] md:h-[calc(100vh-140px)] min-h-[500px]">
+                <!-- チャットヘッダー -->
+                <div class="px-5 py-3.5 bg-gradient-to-r from-blue-50 to-emerald-50 border-b border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center text-white text-xs font-bold shadow-sm">AI</div>
+                        <div>
+                            <h2 class="text-sm font-extrabold text-slate-800">AIスケジュール・プランナー</h2>
+                            <p class="text-[11px] text-slate-500">自然な言葉で入力すると、忘却曲線や優先度を自動判定して組み込みます</p>
+                        </div>
+                    </div>
+                    <button onclick="switchView('today')" class="text-xs font-bold text-blue-600 bg-white px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm hover:bg-blue-50">
+                        今日のタスクへ戻る
+                    </button>
+                </div>
+
+                <!-- チャットメッセージ履歴 -->
+                <div id="chatMessages" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-slate-50/40">
+                    <div class="flex items-start gap-2.5 chat-bubble">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-emerald-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm">AI</div>
+                        <div class="bg-white border border-slate-200/80 rounded-2xl rounded-tl-none p-4 text-sm text-slate-700 shadow-sm max-w-[85%] leading-relaxed">
+                            やるべき勉強や急な宿題をメッセージで教えてください！✨<br>
+                            <ul class="text-xs text-slate-500 mt-2 space-y-1 list-disc list-inside">
+                                <li><strong>問題集</strong>と入れると「1周目＋翌日2周目＋1週間後3周目」を自動予約！</li>
+                                <li><strong>急な宿題・明日まで</strong>と入れると最優先で割り込み、他の予定を自動調整！</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ワンタップ入力サンプルチップ -->
+                <div class="px-4 py-3 bg-slate-50 border-t border-slate-100">
+                    <p class="text-[11px] font-bold text-slate-500 mb-2">💡 タップして体験（サンプル送信）：</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="sendQuickSample('問題集：青チャート数学1A 30問を1日10問ペースで')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl font-semibold transition">
+                            📘 問題集：青チャート数学1A 30問を1日10問ペースで
+                        </button>
+                        <button onclick="sendQuickSample('明日までに現代文プリント 40分 急ぎ')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-xl font-semibold transition">
+                            🚨 明日までに現代文プリント 40分 急ぎ
+                        </button>
+                        <button onclick="sendQuickSample('金曜日までに英語ワークP10〜20 60分')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl font-semibold transition">
+                            📝 金曜日までに英語ワークP10〜20 60分
+                        </button>
+                    </div>
+                </div>
+
+                <!-- チャット送信ボックス -->
+                <form onsubmit="handleChatSubmit(event)" class="p-3.5 bg-white border-t border-slate-200 flex items-center gap-2.5">
+                    <input type="text" id="chatInput" placeholder="例：問題集 ターゲット1900 40語 / 明日までに化学 45分" class="flex-1 bg-slate-100 focus:bg-white border border-transparent focus:border-blue-400 rounded-xl px-4 py-3 text-sm outline-none transition" autocomplete="off">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-sm transition active:scale-95 flex items-center gap-1.5 flex-shrink-0">
+                        <span>送信</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- 3. 「詳細フォーム登録」画面                                -->
+        <!-- ========================================================= -->
+        <section id="view-form" class="view-section hidden view-fade">
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 sm:p-8 max-w-2xl mx-auto">
+                <div class="mb-6">
+                    <h2 class="text-xl font-extrabold text-slate-800">詳細フォームからタスク・問題集を登録</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">教科や復習サイクルを細かく指定してスケジュールに自動組み込みします。</p>
+                </div>
+
+                <form onsubmit="handleFormSubmit(event)" class="space-y-5">
+                    <!-- モード切替タブ（ラジオボタン） -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-2">1. 登録タイプを選択</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="formMode" value="workbook" class="peer sr-only" checked onchange="toggleFormMode()">
+                                <div class="p-3.5 rounded-2xl border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50/70 transition">
+                                    <div class="flex items-center gap-2 font-extrabold text-sm text-slate-800 peer-checked:text-emerald-800">
+                                        <span>📘 問題集（忘却曲線3周計画）</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-1">1周目の進度に合わせて2周目・3周目の復習を自動予約します</p>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="formMode" value="general" class="peer sr-only" onchange="toggleFormMode()">
+                                <div class="p-3.5 rounded-2xl border-2 border-slate-200 peer-checked:border-blue-500 peer-checked:bg-blue-50/70 transition">
+                                    <div class="flex items-center gap-2 font-extrabold text-sm text-slate-800 peer-checked:text-blue-800">
+                                        <span>📝 一般タスク・急な宿題</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-1">提出期限と優先度を指定して空き時間に自動配置します</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 共通：教科＆タイトル -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1.5">教科</label>
+                            <select id="formSubject" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-medium">
+                                <option value="英語">🇬🇧 英語</option>
+                                <option value="数学" selected>📐 数学</option>
+                                <option value="国語">📖 国語</option>
+                                <option value="理科">🧪 理科</option>
+                                <option value="社会">🌍 社会</option>
+                                <option value="その他">📌 その他</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold text-slate-600 mb-1.5">教材名・タスク名</label>
+                            <input type="text" id="formTitle" required placeholder="例：基礎問題精講 数学II・B / 週末英語プリント" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:bg-white focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- A. 問題集専用フィールド -->
+                    <div id="workbookFields" class="space-y-4 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-emerald-900 mb-1.5">総問題数（またはページ数）</label>
+                                <input type="number" id="formTotalUnits" value="20" min="1" max="300" class="w-full border border-emerald-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-emerald-900 mb-1.5">1日の目標ペース</label>
+                                <input type="number" id="formDailyPace" value="5" min="1" max="100" class="w-full border border-emerald-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-emerald-900 mb-1.5">忘却曲線・復習サイクル設定</label>
+                            <select id="formReviewPattern" class="w-full border border-emerald-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                                <option value="standard" selected>標準3周コース（1周目 → 翌日2周目 → 7日後3周目）</option>
+                                <option value="intensive">徹底4周コース（1周目 → 翌日2周目 → 7日後3周目 → 21日後4周目）</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- B. 一般タスク・宿題専用フィールド -->
+                    <div id="generalFields" class="hidden space-y-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1.5">予想所要時間（分）</label>
+                                <input type="number" id="formDuration" value="60" min="10" max="600" step="5" class="w-full border border-blue-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1.5">提出期限</label>
+                                <select id="formDeadlineDays" class="w-full border border-blue-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                                    <option value="0">今日中</option>
+                                    <option value="1" selected>明日まで（1日後）</option>
+                                    <option value="2">明後日まで（2日後）</option>
+                                    <option value="3">3日後まで</option>
+                                    <option value="5">5日後まで</option>
+                                    <option value="7">1週間後まで</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1.5">優先度</label>
+                                <select id="formPriority" class="w-full border border-blue-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                                    <option value="normal">通常タスク</option>
+                                    <option value="urgent">🚨 緊急・最優先割り込み</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                            <input type="checkbox" id="formSplittable" checked class="rounded text-blue-600">
+                            <span>1日の空き時間に収まらない場合、複数日に自動分割して配置する</span>
+                        </label>
+                    </div>
+
+                    <div class="pt-2 flex flex-col sm:flex-row gap-3">
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600 text-white font-bold py-3 rounded-xl shadow-md transition active:scale-98">
+                            自動スケジューリングを実行して登録
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- 4. 「週間スケジュール＆設定」画面                          -->
+        <!-- ========================================================= -->
+        <section id="view-schedule" class="view-section hidden view-fade space-y-6">
+            <!-- 勉強可能時間設定パネル -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h2 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                            <span>⚙️ 1日の勉強可能時間の設定</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">スライダーを動かすと、全日程のスケジュールが即座に再計算されます。</p>
+                    </div>
+                    <button onclick="resetDemoData()" class="text-xs text-slate-400 hover:text-slate-600 underline">初期データに戻す</button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-600">平日の勉強枠（月〜金）</span>
+                            <span id="weekdayCapLabel" class="text-sm font-extrabold text-blue-600">120分 (2.0時間)</span>
+                        </div>
+                        <input type="range" id="weekdayCapSlider" min="30" max="360" step="15" value="120" oninput="updateCapacitySettings()" class="w-full accent-blue-600 cursor-pointer">
+                    </div>
+
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-slate-600">休日の勉強枠（土日）</span>
+                            <span id="weekendCapLabel" class="text-sm font-extrabold text-emerald-600">240分 (4.0時間)</span>
+                        </div>
+                        <input type="range" id="weekendCapSlider" min="60" max="600" step="15" value="240" oninput="updateCapacitySettings()" class="w-full accent-emerald-500 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 凡例 -->
+            <div class="flex flex-wrap items-center gap-2 text-xs px-1">
+                <span class="font-bold text-slate-500">凡例:</span>
+                <span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 font-semibold">🚨 急な宿題</span>
+                <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 font-semibold">📘 1周目(新規)</span>
+                <span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-700 font-semibold">🔄 2周目(翌日)</span>
+                <span class="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 font-semibold">👑 3周目(1週間後)</span>
+                <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-semibold">🏆 4周目(3週間後)</span>
+                <span class="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 font-semibold">📝 通常タスク</span>
+            </div>
+
+            <!-- 日別タイムライン一覧 -->
+            <div id="scheduleTimeline" class="space-y-4">
+                <!-- JSで動的描画 -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- スマホ用ボトムナビゲーション -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 z-40 grid grid-cols-4 h-16 px-1 shadow-lg">
+        <button data-nav="today" onclick="switchView('today')" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-blue-600 font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="text-[10px]">今日のタスク</span>
+        </button>
+        <button data-nav="chat" onclick="switchView('chat')" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-slate-500 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+            <span class="text-[10px]">AIチャット</span>
+        </button>
+        <button data-nav="form" onclick="switchView('form')" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-slate-500 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            <span class="text-[10px]">詳細登録</span>
+        </button>
+        <button data-nav="schedule" onclick="switchView('schedule')" class="nav-btn-mobile flex flex-col items-center justify-center gap-0.5 text-slate-500 font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <span class="text-[10px]">週間＆設定</span>
+        </button>
+    </nav>
+
+    <script>
+        // ==========================================
+        // 1. アプリの状態管理（State）
+        // ==========================================
+        let currentView = 'today';
+        let weekdayCapacity = 120; // 平日最大勉強時間（分）
+        let weekendCapacity = 240; // 休日最大勉強時間（分）
+        let tasks = [];
+        let lastShiftedIds = new Set();
+
+        const SUBJECT_STYLES = {
+            '英語': 'bg-sky-50 text-sky-700 border-sky-200',
+            '数学': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+            '国語': 'bg-amber-50 text-amber-700 border-amber-200',
+            '理科': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            '社会': 'bg-orange-50 text-orange-700 border-orange-200',
+            'その他': 'bg-slate-100 text-slate-700 border-slate-200'
+        };
+
+        const getToday = () => {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        };
+
+        const addDays = (baseDate, days) => {
+            const d = new Date(baseDate);
+            d.setDate(d.getDate() + days);
+            return d;
+        };
+
+        const formatDateKey = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
+
+        const formatJapaneseDate = (date, offsetDays) => {
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            const w = weekdays[date.getDay()];
+            let relative = offsetDays === 0 ? '今日' : offsetDays === 1 ? '明日' : offsetDays === 2 ? '明後日' : `${offsetDays}日後`;
+            return { main: `${m}月${d}日 (${w})`, relative, weekend: isWeekend(date) };
+        };
+
+        // ==========================================
+        // 2. 画面切り替え（ナビゲーション制御）
+        // ==========================================
+        function switchView(viewName) {
+            currentView = viewName;
+
+            // セクション表示切替
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(`view-${viewName}`);
+            if (target) target.classList.remove('hidden');
+
+            // デスクトップナビのスタイル更新
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                const isActive = btn.dataset.nav === viewName;
+                if (isActive) {
+                    btn.className = 'nav-btn px-3.5 py-2 rounded-lg text-sm font-bold transition flex items-center gap-1.5 bg-white text-blue-600 shadow-sm';
+                } else {
+                    btn.className = 'nav-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+                }
+            });
+
+            // モバイルナビのスタイル更新
+            document.querySelectorAll('.nav-btn-mobile').forEach(btn => {
+                const isActive = btn.dataset.nav === viewName;
+                btn.className = `nav-btn-mobile flex flex-col items-center justify-center gap-0.5 ${isActive ? 'text-blue-600 font-bold' : 'text-slate-500 font-medium'}`;
+            });
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ==========================================
+        // 3. 初期デモデータ作成
+        // ==========================================
+        function initDemoData() {
+            const today = getToday();
+            const todayKey = formatDateKey(today);
+            tasks = [];
+
+            // 1. 英単語ターゲット1900（3周計画：1〜100は昨日学習済みで今日2周目の想定、101〜150は今日1周目）
+            tasks.push({
+                id: 'demo-eng-r2',
+                title: '英単語ターゲット1900 (1〜100)',
+                subject: '英語',
+                category: 'workbook',
+                round: 2,
+                duration: 20,
+                earliestDayOffset: 0,
+                deadlineDayOffset: 1,
+                assignedDateKey: todayKey,
+                completed: true, // 1件完了済みにし、進捗バーがリアルに見えるようにする
+                priority: 2
+            });
+            tasks.push({
+                id: 'demo-eng-r3',
+                title: '英単語ターゲット1900 (1〜100)',
+                subject: '英語',
+                category: 'workbook',
+                round: 3,
+                duration: 15,
+                earliestDayOffset: 6,
+                deadlineDayOffset: 8,
+                assignedDateKey: formatDateKey(addDays(today, 6)),
+                completed: false,
+                priority: 2
+            });
+
+            // 2. 青チャート数学I・A（今日〜3日間の3周計画）
+            createWorkbookTasks('青チャート数学I・A 例題', '数学', 15, 5, 0, 'standard', false);
+
+            // 3. 学校の数学プリント（今日締切の課題）
+            tasks.push({
+                id: 'demo-math-hw',
+                title: '学校課題：三角比演習プリント',
+                subject: '数学',
+                category: 'normal',
+                round: null,
+                duration: 35,
+                earliestDayOffset: 0,
+                deadlineDayOffset: 1,
+                assignedDateKey: todayKey,
+                completed: false,
+                priority: 2
+            });
+
+            // 4. 古文単語（明日以降）
+            tasks.push({
+                id: 'demo-jpn-1',
+                title: '古文単語315 重要語句チェック',
+                subject: '国語',
+                category: 'normal',
+                round: null,
+                duration: 30,
+                earliestDayOffset: 1,
+                deadlineDayOffset: 3,
+                assignedDateKey: formatDateKey(addDays(today, 1)),
+                completed: false,
+                priority: 2
+            });
+
+            runAutoScheduler(false);
+        }
+
+        function resetDemoData() {
+            initDemoData();
+            showToast('初期デモデータにリセットしました', 'info');
+        }
+
+        // ==========================================
+        // 4. 問題集「忘却曲線・周回計画」自動生成
+        // ==========================================
+        function createWorkbookTasks(bookTitle, subject, totalUnits, dailyPace, startOffset = 0, pattern = 'standard', shouldReschedule = true) {
+            const chunks = Math.ceil(totalUnits / dailyPace);
+            const groupId = 'wb-' + Date.now() + Math.random().toString(36).substring(2, 6);
+
+            for (let i = 0; i < chunks; i++) {
+                const startUnit = i * dailyPace + 1;
+                const endUnit = Math.min((i + 1) * dailyPace, totalUnits);
+                const rangeText = `${startUnit}〜${endUnit}`;
+                const dayOffset1st = startOffset + i;
+                const baseDuration = Math.max(25, Math.min(60, (endUnit - startUnit + 1) * 5));
+
+                // 1周目（新規）
+                tasks.push({
+                    id: `${groupId}-c${i}-r1`,
+                    title: `${bookTitle} (${rangeText})`,
+                    subject,
+                    category: 'workbook',
+                    round: 1,
+                    duration: baseDuration,
+                    earliestDayOffset: dayOffset1st,
+                    deadlineDayOffset: dayOffset1st + 3,
+                    assignedDateKey: null,
+                    completed: false,
+                    priority: 3
+                });
+
+                // 2周目（翌日復習）
+                tasks.push({
+                    id: `${groupId}-c${i}-r2`,
+                    title: `${bookTitle} (${rangeText})`,
+                    subject,
+                    category: 'workbook',
+                    round: 2,
+                    duration: Math.max(15, Math.round(baseDuration * 0.6)),
+                    earliestDayOffset: dayOffset1st + 1,
+                    deadlineDayOffset: dayOffset1st + 4,
+                    assignedDateKey: null,
+                    completed: false,
+                    priority: 2
+                });
+
+                // 3周目（7日後定着）
+                tasks.push({
+                    id: `${groupId}-c${i}-r3`,
+                    title: `${bookTitle} (${rangeText})`,
+                    subject,
+                    category: 'workbook',
+                    round: 3,
+                    duration: Math.max(15, Math.round(baseDuration * 0.4)),
+                    earliestDayOffset: dayOffset1st + 7,
+                    deadlineDayOffset: dayOffset1st + 10,
+                    assignedDateKey: null,
+                    completed: false,
+                    priority: 2
+                });
+
+                // 4周目（徹底コースの場合は21日後も追加）
+                if (pattern === 'intensive') {
+                    tasks.push({
+                        id: `${groupId}-c${i}-r4`,
+                        title: `${bookTitle} (${rangeText})`,
+                        subject,
+                        category: 'workbook',
+                        round: 4,
+                        duration: Math.max(10, Math.round(baseDuration * 0.3)),
+                        earliestDayOffset: dayOffset1st + 21,
+                        deadlineDayOffset: dayOffset1st + 25,
+                        assignedDateKey: null,
+                        completed: false,
+                        priority: 2
+                    });
+                }
+            }
+
+            if (shouldReschedule) {
+                runAutoScheduler(true);
+            }
+        }
+
+        // ==========================================
+        // 5. 自動スケジューリング＆再計算エンジン
+        // ==========================================
+        function runAutoScheduler(highlightChanges = true) {
+            const today = getToday();
+            const previousAssignments = {};
+            tasks.forEach(t => { previousAssignments[t.id] = t.assignedDateKey; });
+
+            const dailyUsedMinutes = {};
+            const getDayCapacity = (dateObj) => isWeekend(dateObj) ? weekendCapacity : weekdayCapacity;
+
+            // 1. 完了済みタスクは元の日に固定
+            tasks.filter(t => t.completed).forEach(t => {
+                const key = t.assignedDateKey || formatDateKey(today);
+                t.assignedDateKey = key;
+                dailyUsedMinutes[key] = (dailyUsedMinutes[key] || 0) + t.duration;
+            });
+
+            // 2. 未完了タスクを優先順位順にソート
+            const uncompleted = tasks.filter(t => !t.completed);
+            uncompleted.sort((a, b) => {
+                if (a.priority !== b.priority) return a.priority - b.priority;
+                if (a.deadlineDayOffset !== b.deadlineDayOffset) return a.deadlineDayOffset - b.deadlineDayOffset;
+                if (a.earliestDayOffset !== b.earliestDayOffset) return a.earliestDayOffset - b.earliestDayOffset;
+                return (a.round || 0) - (b.round || 0);
+            });
+
+            // 3. 空き枠へパズル配置
+            uncompleted.forEach(task => {
+                const startDay = Math.max(0, task.earliestDayOffset);
+                let placed = false;
+
+                for (let offset = startDay; offset < 45; offset++) {
+                    const targetDate = addDays(today, offset);
+                    const dateKey = formatDateKey(targetDate);
+                    const cap = getDayCapacity(targetDate);
+                    const used = dailyUsedMinutes[dateKey] || 0;
+
+                    if (used + task.duration <= cap || (used === 0 && task.duration > cap)) {
+                        task.assignedDateKey = dateKey;
+                        dailyUsedMinutes[dateKey] = used + task.duration;
+                        placed = true;
+                        break;
+                    }
+                }
+
+                if (!placed) {
+                    const fallbackKey = formatDateKey(addDays(today, startDay));
+                    task.assignedDateKey = fallbackKey;
+                    dailyUsedMinutes[fallbackKey] = (dailyUsedMinutes[fallbackKey] || 0) + task.duration;
+                }
+            });
+
+            // 4. リスケで移動したタスクを検出
+            lastShiftedIds.clear();
+            let shiftedCount = 0;
+            if (highlightChanges) {
+                uncompleted.forEach(t => {
+                    if (previousAssignments[t.id] && previousAssignments[t.id] !== t.assignedDateKey) {
+                        lastShiftedIds.add(t.id);
+                        shiftedCount++;
+                    }
+                });
+            }
+
+            renderTodayView();
+            renderScheduleTimeline();
+
+            if (highlightChanges && shiftedCount > 0) {
+                showToast(`スケジュールを自動再計算しました（${shiftedCount}件の予定を調整）`, 'reschedule');
+            }
+        }
+
+        function rescheduleTodayUnfinished() {
+            const todayKey = formatDateKey(getToday());
+            let moved = 0;
+
+            tasks.forEach(t => {
+                if (!t.completed && t.assignedDateKey === todayKey) {
+                    t.earliestDayOffset = Math.max(1, t.earliestDayOffset + 1);
+                    t.deadlineDayOffset = Math.max(t.earliestDayOffset + 1, t.deadlineDayOffset);
+                    moved++;
+                }
+            });
+
+            if (moved === 0) {
+                showToast('今日の未完了タスクはありません！すべて完了しています✨', 'info');
+                return;
+            }
+
+            runAutoScheduler(true);
+            addBotMessage(`今日の未完了タスク ${moved}件 を明日以降の空き時間に一括リスケジュールしました！`);
+        }
+
+        // ==========================================
+        // 6. チャット入力＆AI自然言語パーサー
+        // ==========================================
+        function sendQuickSample(text) {
+            document.getElementById('chatInput').value = text;
+            handleChatSubmit(new Event('submit'));
+        }
+
+        function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addUserMessage(text);
+            input.value = '';
+
+            setTimeout(() => parseAndAddFromText(text), 300);
+        }
+
+        function detectSubject(text) {
+            if (/英|単語|ターゲット|シス単|リーディング|リスニング/.test(text)) return '英語';
+            if (/数|チャート|精講|微積|ベクトル|三角/.test(text)) return '数学';
+            if (/国|現代文|古文|漢文|漢字/.test(text)) return '国語';
+            if (/理|物理|化学|生物|地学/.test(text)) return '理科';
+            if (/社|日本史|世界史|地理|政経|倫理/.test(text)) return '社会';
+            return 'その他';
+        }
+
+        function parseAndAddFromText(text) {
+            const isWorkbook = /問題集|周回|チャート|単語帳|一問一答|精講|ターゲット|シス単/.test(text);
+            const isUrgent = /急ぎ|急な|宿題|提出|プリント|レポート|明日まで|今日中/.test(text) && !isWorkbook;
+            const subject = detectSubject(text);
+
+            // 期限抽出
+            let deadlineOffset = 3;
+            if (/今日/.test(text)) deadlineOffset = 0;
+            else if (/明日/.test(text)) deadlineOffset = 1;
+            else if (/明後日/.test(text)) deadlineOffset = 2;
+            else if (/(\d+)日後/.test(text)) deadlineOffset = parseInt(text.match(/(\d+)日後/)[1], 10);
+            else if (/金曜/.test(text)) {
+                const todayDay = getToday().getDay();
+                deadlineOffset = (5 - todayDay + 7) % 7 || 7;
+            } else if (/来週|1週間/.test(text)) deadlineOffset = 7;
+
+            // 所要時間抽出
+            let duration = 45;
+            if (/(\d+(?:\.\d+)?)\s*時間/.test(text)) {
+                duration = Math.round(parseFloat(text.match(/(\d+(?:\.\d+)?)\s*時間/)[1]) * 60);
+            } else if (/(\d+)\s*分/.test(text)) {
+                duration = parseInt(text.match(/(\d+)\s*分/)[1], 10);
+            }
+
+            // 総問題数・ペース抽出
+            let totalUnits = 15;
+            if (/(\d+)\s*(問|題|ページ|語|個)/.test(text)) {
+                totalUnits = parseInt(text.match(/(\d+)\s*(問|題|ページ|語|個)/)[1], 10);
+            }
+            let dailyPace = totalUnits >= 30 ? 10 : 5;
+            if (/1日\s*(\d+)/.test(text)) {
+                dailyPace = parseInt(text.match(/1日\s*(\d+)/)[1], 10);
+            }
+
+            // タイトル整形
+            let cleanTitle = text
+                .replace(/^(問題集|急な宿題|宿題|タスク)[：:\s]*/g, '')
+                .replace(/(今日中|明日|明後日|\d+日後|金曜日?|来週|1週間)(までに|まで)?/g, '')
+                .replace(/1日\s*\d+\s*(問|題|ページ|語|個)?(ペースで)?/g, '')
+                .replace(/\d+(?:\.\d+)?\s*時間/g, '')
+                .replace(/\d+\s*分/g, '')
+                .replace(/\d+\s*(問|題|ページ|語|個)/g, '')
+                .replace(/(急ぎ|最優先)/g, '')
+                .trim();
+
+            if (!cleanTitle) cleanTitle = isWorkbook ? '新規問題集' : '学習タスク';
+
+            if (isWorkbook) {
+                createWorkbookTasks(cleanTitle, subject, totalUnits, dailyPace, 0, 'standard', true);
+                const chunks = Math.ceil(totalUnits / dailyPace);
+                addBotMessage(
+                    `📘 <strong>【${subject}】${cleanTitle}</strong>（全${totalUnits}題・1日${dailyPace}題ペース）を解析しました！<br>` +
+                    `忘却曲線に沿って<strong>1周目＋翌日2周目＋7日後3周目（計${chunks * 3}コマ）</strong>をスケジュールに自動予約しています。` +
+                    `<div class="mt-2.5"><button onclick="switchView('today')" class="text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm">今日のタスクで確認する →</button></div>`
+                );
+            } else {
+                tasks.push({
+                    id: 'task-' + Date.now(),
+                    title: cleanTitle,
+                    subject,
+                    category: isUrgent ? 'urgent' : 'normal',
+                    round: null,
+                    duration,
+                    earliestDayOffset: 0,
+                    deadlineDayOffset: deadlineOffset,
+                    assignedDateKey: null,
+                    completed: false,
+                    priority: isUrgent ? 1 : 2
+                });
+                runAutoScheduler(true);
+
+                const deadlineLabel = deadlineOffset === 0 ? '今日中' : deadlineOffset === 1 ? '明日まで' : `${deadlineOffset}日後まで`;
+                addBotMessage(
+                    `${isUrgent ? '🚨 <strong>最優先タスク</strong>として' : '📝'} <strong>【${subject}】${cleanTitle}</strong>（${duration}分・${deadlineLabel}）を組み込みました！` +
+                    `${isUrgent ? '<br>あふれた既存タスクは後ろの日程へ自動調整しています。' : ''}` +
+                    `<div class="mt-2.5"><button onclick="switchView('today')" class="text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm">今日のタスクで確認する →</button></div>`
+                );
+            }
+        }
+
+        // ==========================================
+        // 7. 詳細フォーム登録処理
+        // ==========================================
+        function toggleFormMode() {
+            const mode = document.querySelector('input[name="formMode"]:checked').value;
+            document.getElementById('workbookFields').classList.toggle('hidden', mode !== 'workbook');
+            document.getElementById('generalFields').classList.toggle('hidden', mode === 'workbook');
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const mode = document.querySelector('input[name="formMode"]:checked').value;
+            const subject = document.getElementById('formSubject').value;
+            const title = document.getElementById('formTitle').value.trim();
+            if (!title) return;
+
+            if (mode === 'workbook') {
+                const total = parseInt(document.getElementById('formTotalUnits').value, 10) || 20;
+                const pace = parseInt(document.getElementById('formDailyPace').value, 10) || 5;
+                const pattern = document.getElementById('formReviewPattern').value;
+                createWorkbookTasks(title, subject, total, pace, 0, pattern, true);
+                showToast(`問題集『${title}』の復習計画を自動生成しました！`, 'success');
+            } else {
+                const totalDuration = parseInt(document.getElementById('formDuration').value, 10) || 60;
+                const deadline = parseInt(document.getElementById('formDeadlineDays').value, 10);
+                const priorityType = document.getElementById('formPriority').value;
+                const splittable = document.getElementById('formSplittable').checked;
+
+                // 分割ONかつ90分以上の場合は45分ずつ分割して空き枠に入りやすくする
+                if (splittable && totalDuration >= 90) {
+                    const parts = Math.ceil(totalDuration / 45);
+                    for (let i = 0; i < parts; i++) {
+                        const partDur = i === parts - 1 ? totalDuration - i * 45 : 45;
+                        tasks.push({
+                            id: `task-${Date.now()}-${i}`,
+                            title: `${title} (${i + 1}/${parts})`,
+                            subject,
+                            category: priorityType === 'urgent' ? 'urgent' : 'normal',
+                            round: null,
+                            duration: partDur,
+                            earliestDayOffset: 0,
+                            deadlineDayOffset: deadline,
+                            assignedDateKey: null,
+                            completed: false,
+                            priority: priorityType === 'urgent' ? 1 : 2
+                        });
+                    }
+                } else {
+                    tasks.push({
+                        id: 'task-' + Date.now(),
+                        title,
+                        subject,
+                        category: priorityType === 'urgent' ? 'urgent' : 'normal',
+                        round: null,
+                        duration: totalDuration,
+                        earliestDayOffset: 0,
+                        deadlineDayOffset: deadline,
+                        assignedDateKey: null,
+                        completed: false,
+                        priority: priorityType === 'urgent' ? 1 : 2
+                    });
+                }
+                runAutoScheduler(true);
+                showToast(`『${title}』をスケジュールに組み込みました！`, 'success');
+            }
+
+            document.getElementById('formTitle').value = '';
+            switchView('today');
+        }
+
+        // ==========================================
+        // 8. 画面描画（今日のタスク & 週間スケジュール）
+        // ==========================================
+        function toggleTaskComplete(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            task.completed = !task.completed;
+            renderTodayView();
+            renderScheduleTimeline();
+
+            if (task.completed) {
+                showToast(`「${task.title}」を完了しました！お疲れさま🎉`, 'success');
+            }
+        }
+
+        function deleteTask(taskId) {
+            tasks = tasks.filter(t => t.id !== taskId);
+            runAutoScheduler(false);
+            showToast('タスクを削除しました', 'info');
+        }
+
+        function updateCapacitySettings() {
+            weekdayCapacity = parseInt(document.getElementById('weekdayCapSlider').value, 10);
+            weekendCapacity = parseInt(document.getElementById('weekendCapSlider').value, 10);
+
+            document.getElementById('weekdayCapLabel').textContent = `${weekdayCapacity}分 (${(weekdayCapacity / 60).toFixed(1)}時間)`;
+            document.getElementById('weekendCapLabel').textContent = `${weekendCapacity}分 (${(weekendCapacity / 60).toFixed(1)}時間)`;
+
+            runAutoScheduler(true);
+        }
+
+        // 1. 「今日のタスク」画面の描画
+        function renderTodayView() {
+            const today = getToday();
+            const todayKey = formatDateKey(today);
+            const dateInfo = formatJapaneseDate(today, 0);
+            const dayCap = isWeekend(today) ? weekendCapacity : weekdayCapacity;
+
+            document.getElementById('todayDateDisplay').textContent = dateInfo.main;
+
+            const todayTasks = tasks.filter(t => t.assignedDateKey === todayKey);
+            todayTasks.sort((a, b) => (a.completed - b.completed) || (a.priority - b.priority) || ((a.round || 0) - (b.round || 0)));
+
+            const totalCount = todayTasks.length;
+            const completedCount = todayTasks.filter(t => t.completed).length;
+            const remainingCount = totalCount - completedCount;
+
+            const totalMinutes = todayTasks.reduce((sum, t) => sum + t.duration, 0);
+            const completedMinutes = todayTasks.filter(t => t.completed).reduce((sum, t) => sum + t.duration, 0);
+            const remainingMinutes = totalMinutes - completedMinutes;
+
+            const pct = totalCount === 0 ? 100 : Math.round((completedCount / totalCount) * 100);
+
+            // サマリー数値反映
+            document.getElementById('todayProgressPercent').textContent = `${pct}%`;
+            document.getElementById('todayCompletedRatio').textContent = `${completedCount} / ${totalCount}`;
+            document.getElementById('todayRemainingMinutes').textContent = `${remainingMinutes}分`;
+            document.getElementById('todayTotalMinutes').textContent = `${totalMinutes}分`;
+            document.getElementById('todayCapMinutes').textContent = `${dayCap}分`;
+            document.getElementById('todayProgressBar').style.width = `${pct}%`;
+            document.getElementById('navTodayBadge').textContent = remainingCount;
+
+            // 応援メッセージ更新
+            const msgEl = document.getElementById('todayEncourageText');
+            if (totalCount === 0) {
+                msgEl.textContent = '今日の予定はまだありません。チャットから問題集や課題を登録しましょう！';
+            } else if (remainingCount === 0) {
+                msgEl.textContent = '🎉 今日のタスクをすべて完了しました！素晴らしいペースです！';
+            } else {
+                msgEl.textContent = `残り ${remainingCount}件（${remainingMinutes}分）です。一歩ずつ片付けていきましょう！`;
+            }
+
+            // タスクカード一覧描画
+            const listContainer = document.getElementById('todayTaskList');
+            if (todayTasks.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+                        <p class="text-sm font-bold text-slate-600">今日割り当てられているタスクはありません</p>
+                        <p class="text-xs text-slate-400 mt-1">「チャットでAI登録」から問題集や宿題を追加してみてください。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = todayTasks.map(t => renderTaskCardHtml(t)).join('');
+        }
+
+        // 4. 「週間スケジュール＆設定」画面の描画
+        function renderScheduleTimeline() {
+            const container = document.getElementById('scheduleTimeline');
+            container.innerHTML = '';
+            const today = getToday();
+
+            let maxOffset = 13; // 最低2週間（14日間）表示
+            tasks.forEach(t => {
+                if (t.assignedDateKey) {
+                    const diff = Math.round((new Date(t.assignedDateKey) - today) / (1000 * 60 * 60 * 24));
+                    if (diff > maxOffset) maxOffset = diff;
+                }
+            });
+
+            for (let offset = 0; offset <= maxOffset; offset++) {
+                const dateObj = addDays(today, offset);
+                const dateKey = formatDateKey(dateObj);
+                const dateInfo = formatJapaneseDate(dateObj, offset);
+                const dayCap = isWeekend(dateObj) ? weekendCapacity : weekdayCapacity;
+
+                const dayTasks = tasks.filter(t => t.assignedDateKey === dateKey);
+                dayTasks.sort((a, b) => (a.completed - b.completed) || (a.priority - b.priority) || ((a.round || 0) - (b.round || 0)));
+
+                const totalMinutes = dayTasks.reduce((sum, t) => sum + t.duration, 0);
+                const loadRatio = Math.min(100, Math.round((totalMinutes / dayCap) * 100));
+                const isOver = totalMinutes > dayCap;
+
+                const dayCard = document.createElement('div');
+                dayCard.className = `bg-white rounded-2xl border ${offset === 0 ? 'border-blue-300 ring-2 ring-blue-100' : 'border-slate-200/80'} shadow-sm overflow-hidden`;
+
+                const tasksHtml = dayTasks.length === 0
+                    ? `<div class="py-3.5 text-center text-xs text-slate-400">予定なし（予備日・フリー枠）</div>`
+                    : dayTasks.map(t => renderTaskCardHtml(t, true)).join('');
+
+                dayCard.innerHTML = `
+                    <div class="px-4 py-3 ${offset === 0 ? 'bg-gradient-to-r from-blue-50 to-emerald-50/50' : 'bg-slate-50/80'} border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-extrabold px-2.5 py-1 rounded-lg ${offset === 0 ? 'bg-blue-600 text-white' : dateInfo.weekend ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}">
+                                ${dateInfo.relative}
+                            </span>
+                            <h3 class="text-sm font-bold text-slate-800">${dateInfo.main}</h3>
+                        </div>
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xs font-semibold ${isOver ? 'text-rose-600' : 'text-slate-500'}">
+                                合計 <strong>${totalMinutes}</strong> / ${dayCap}分
+                            </span>
+                            <div class="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div class="h-full ${isOver ? 'bg-rose-500' : 'bg-emerald-500'} transition-all" style="width: ${loadRatio}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 space-y-2">${tasksHtml}</div>
+                `;
+
+                container.appendChild(dayCard);
+            }
+        }
+
+        // タスクカード共通HTML生成
+        function renderTaskCardHtml(t, compact = false) {
+            const typeBadge = getTaskBadgeHtml(t);
+            const subjStyle = SUBJECT_STYLES[t.subject] || SUBJECT_STYLES['その他'];
+            const isShifted = lastShiftedIds.has(t.id);
+
+            return `
+                <div class="group flex items-center justify-between gap-3 ${compact ? 'p-3' : 'p-4'} rounded-2xl border ${t.completed ? 'bg-slate-50 border-slate-100 opacity-65' : 'bg-white border-slate-200/80 hover:border-blue-300 shadow-sm'} transition ${isShifted ? 'rescheduled-flash border-blue-400' : ''}">
+                    <div class="flex items-center gap-3.5 min-w-0">
+                        <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskComplete('${t.id}')" class="w-5 h-5 rounded-md text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${subjStyle}">${escapeHtml(t.subject || 'その他')}</span>
+                                ${typeBadge}
+                                ${isShifted ? '<span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">自動リスケ済</span>' : ''}
+                            </div>
+                            <p class="${compact ? 'text-sm' : 'text-base'} font-bold text-slate-800 truncate ${t.completed ? 'line-through text-slate-400' : ''}">${escapeHtml(t.title)}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <span class="text-xs font-extrabold text-slate-600 bg-slate-100 px-2.5 py-1.5 rounded-xl">${t.duration}分</span>
+                        <button onclick="deleteTask('${t.id}')" class="opacity-60 sm:opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 transition" title="削除">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getTaskBadgeHtml(task) {
+            if (task.category === 'urgent') {
+                return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-700">🚨 急な宿題(最優先)</span>`;
+            }
+            if (task.category === 'workbook') {
+                if (task.round === 1) return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">📘 問題集 1周目</span>`;
+                if (task.round === 2) return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-teal-100 text-teal-700">🔄 2周目(翌日復習)</span>`;
+                if (task.round === 3) return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700">👑 3周目(1週間後)</span>`;
+                if (task.round === 4) return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-purple-100 text-purple-700">🏆 4周目(3週間後)</span>`;
+            }
+            return `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">📝 通常課題</span>`;
+        }
+
+        function addUserMessage(text) {
+            const box = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'flex justify-end chat-bubble';
+            div.innerHTML = `<div class="bg-blue-600 text-white rounded-2xl rounded-tr-none px-4 py-2.5 text-sm shadow-sm max-w-[82%] leading-relaxed">${escapeHtml(text)}</div>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function addBotMessage(htmlText) {
+            const box = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'flex items-start gap-2.5 chat-bubble';
+            div.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-emerald-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm">AI</div>
+                <div class="bg-white border border-slate-200/80 rounded-2xl rounded-tl-none p-3.5 text-sm text-slate-700 shadow-sm max-w-[85%] leading-relaxed">${htmlText}</div>
+            `;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const colors = {
+                reschedule: 'bg-blue-600 text-white border-blue-500',
+                success: 'bg-emerald-600 text-white border-emerald-500',
+                info: 'bg-slate-800 text-white border-slate-700'
+            };
+            toast.className = `${colors[type] || colors.info} border px-4 py-3 rounded-2xl shadow-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 pointer-events-auto transition-all duration-300 transform -translate-y-2 opacity-0`;
+            toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => toast.classList.remove('-translate-y-2', 'opacity-0'));
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        window.onload = function() {
+            initDemoData();
+            switchView('today');
+        };
+    </script>
+</body>
+</html>
